@@ -261,3 +261,117 @@ proc deleteAlias*(self: Session, id: string): JsonNode =
                                 httpMethod = HttpPost, body = $data)
 
   return parseJson(resp.body)
+
+proc getLogs*(self: Session, service: string, count: string): JsonNode =
+  
+  let resp = self.client.getContent($(self.url / "api/v1/get/logs" / service / count))
+
+  return parseJson(resp)
+
+proc getQueue*(self: Session): JsonNode =
+
+  let resp = self.client.getContent($(self.url / "api/v1/get/mailq/all"))
+
+  return parseJson(resp)
+
+proc flushQueue*(self: Session): JsonNode =
+
+  let data = %*{
+                "action": "flush"
+              }
+
+  let resp = self.client.request($(self.url / "api/v1/edit/mailq"),
+                                httpMethod = HttpPost, body = $data)
+
+  return parseJson(resp.body)
+
+proc deleteQueue*(self: Session): JsonNode =
+
+  let data = %*{
+                "action": "super_delete"
+              }
+
+  let resp = self.client.request($(self.url / "api/v1/delete/mailq"),
+                                httpMethod = HttpPost, body = $data)
+
+  return parseJson(resp.body)
+
+proc getQuarantine*(self: Session): JsonNode =
+
+  let resp = self.client.getContent($(self.url / "api/v1/get/quarantine/all"))
+
+  return parseJson(resp)
+
+proc deleteQuarantine*(self: Session, id: string): JsonNode =
+
+  let data = %*[
+                id
+              ]
+
+  let resp = self.client.request($(self.url / "api/v1/delete/qitem"),
+                                httpMethod = HttpPost, body = $data)
+
+  return parseJson(resp.body)
+
+proc getFail2Ban*(self: Session): JsonNode =
+
+  let resp = self.client.getContent($(self.url / "api/v1/get/fail2ban"))
+
+  return parseJson(resp)
+
+proc editFail2Ban*(self: Session, ban_time: string ="", max_attempts: string ="",
+                  retry_window: string ="", netban_ipv4: string = "",
+                  netban_ipv6: string ="", whitelist: string = "",
+                  blacklist: string =""): JsonNode =
+
+  let data = %*{
+                "items": [
+                  "none"
+                ],
+                "attr": {
+                  "ban_time": ban_time,
+                  "max_attempts": max_attempts,
+                  "retry_window": retry_window,
+                  "netban_ipv4": netban_ipv4,
+                  "netban_ipv6": netban_ipv6,
+                  "whitelist": whitelist,
+                  "blacklist": blacklist
+                }
+              }
+
+  let resp = self.client.request($(self.url / "api/v1/edit/fail2ban"),
+                                httpMethod = HttpPost, body = $data)
+
+  return parseJson(resp.body)
+
+proc getDkim*(self: Session, domain: string): JsonNode =
+
+  let resp = self.client.getContent($(self.url / "api/v1/get/dkim" / domain))
+
+  return parseJson(resp)
+
+proc generateDkim*(self: Session, domain: string, size: string = "2048"): JsonNode =
+
+  let data = %*{
+                "domains": domain,
+                "dkim_selector": "dkim",
+                "key_size": size
+              }
+
+  let resp = self.client.request($(self.url / "api/v1/add/dkim"),
+                                httpMethod = HttpPost, body = $data)
+
+  return parseJson(resp.body)
+
+proc duplicateDkim*(self: Session, from_domain: string, to: string): JsonNode =
+
+  let data = %*{
+                "from_domain": from_domain,
+                "to_domain": to
+              }
+
+  let resp = self.client.request($(self.url / "api/v1/add/dkim_duplicate"),
+                                httpMethod = HttpPost, body = $data)
+
+  return parseJson(resp.body)
+
