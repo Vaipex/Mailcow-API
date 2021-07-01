@@ -1,5 +1,7 @@
 import httpclient, uri, json, strformat
 
+##API DOCS: https://mailcow.docs.apiary.io/
+
 type
   Session* = ref object
     url*: Uri
@@ -7,7 +9,7 @@ type
     client*: HttpClient
 
 proc setInfo*(domain: string, key: string): Session =
-
+  ##Sets the URL and the API key  
   var client = newHttpClient()
   client.headers = newHttpHeaders({
     "Content-Type": "application/json",
@@ -16,8 +18,9 @@ proc setInfo*(domain: string, key: string): Session =
 
   return Session(url: domain.parseUri, apikey: key, client:client)
 
-proc getDomains*(self: Session, id: string = "all"): JsonNode =
-  let resp = self.client.getContent($(self.url / "api/v1/get/domain/" / id))
+proc getDomains*(self: Session, domain: string = "all"): JsonNode =
+  ##Return Domain settings, by default it returns all domains
+  let resp = self.client.getContent($(self.url / "api/v1/get/domain/" / domain))
   return parseJson(resp)
 
 proc createDomain*(self: Session, domain: string, description: string = "",
@@ -25,6 +28,7 @@ proc createDomain*(self: Session, domain: string, description: string = "",
                   maxquota: int = 10240, quota: int = 10240, active: int = 1,
                   rl_value: int = 10, rl_frame: string = "s", backupmx: int = 0,
                   relay_all_recipients: int = 0, restart_sogo: int = 0): JsonNode =
+  ##Creates a Domain. Defaults values are from Mailcow
                 
   let data = %*{
               "domain": domain,
@@ -51,6 +55,7 @@ proc updateDomain*(self: Session, domain: string, description: string="",
                   maxquota: string = "", quota: string = "", active: string = "",
                   backupmx: string = "", relay_all_recipients: string = "",
                   gal: string = "", relayhost: string = ""): JsonNode =
+  ##Updates a Domain and only changes the called parameters
 
   let data = %*{
               "items": [
@@ -76,24 +81,25 @@ proc updateDomain*(self: Session, domain: string, description: string="",
   return parseJson(resp.body)
 
 proc deleteDomain*(self:Session, domain: string): JsonNode =
-  
+  ##Deletes the provided domain
   let data = fmt"""["{domain}"]"""
   let resp = self.client.request($(self.url / "api/v1/delete/domain"), 
                                   httpMethod = HttpPost, body = data)
   return parseJson(resp.body)
 
 proc getDomainWhitelist*(self: Session, domain: string): JsonNode =
-
+  ##Adds a Domain to a whitelist
   let resp = self.client.getContent($(self.url / "api/v1/get/policy_wl_domain" / domain))
   return parseJson(resp)
 
 proc getDomainBlacklist*(self: Session, domain: string): JsonNode =
-
+  ##Adds a Domain to a blacklist
   let resp = self.client.getContent($(self.url / "api/v1/get/policy_bl_domain" / domain))
   return parseJson(resp)
 
 proc createDomainPolicy*(self: Session, domain: string, wl_bl: string, 
                         toblock: string): JsonNode =
+  ##Creates a Domain policy
   let data = %*{
               "domain": domain,
               "object_list": wl_bl,
@@ -105,7 +111,7 @@ proc createDomainPolicy*(self: Session, domain: string, wl_bl: string,
   return parseJson(resp.body)
   
 proc deleteDomainPolicy*(self: Session, domain: string): JsonNode =
-
+  ##Deletes a Domain policy
   let data = fmt"""["{domain}"]"""
 
   let resp = self.client.request($(self.url / "api/v1/delete/domain-policy"), 
@@ -114,14 +120,16 @@ proc deleteDomainPolicy*(self: Session, domain: string): JsonNode =
   return parseJson(resp.body)
 
 proc getMailboxes*(self: Session, id: string): JsonNode =
-
+  ##Returns the Mailbox from the provided ID
   let resp = self.client.getContent($(self.url / "api/v1/get/mailbox" / id))
   return parseJson(resp)
 
 proc createMailbox*(self: Session, local_part: string, domain: string, name: string,
-                    quota: string, password: string, active: bool, force_pw_update: bool,
-                    tls_enforce_in: bool, tls_enforce_out: bool): JsonNode =
+                    quota: string = "3072", password: string, active: bool = true,
+                    force_pw_update: bool = false, tls_enforce_in: bool = false,
+                    tls_enforce_out: bool = false): JsonNode =
   
+  ##Creates a Mailbox and uses some of the Mailcow default Values
   let data = %*{
                 "local_part": local_part,
                 "domain": domain,
@@ -143,7 +151,7 @@ proc createMailbox*(self: Session, local_part: string, domain: string, name: str
 proc updateMailbox*(self: Session, mailbox: string, name: string = "",
                     quota: string = "", password: string = "", active: string = "",
                     force_pw_update: string = "", sogo: string = ""): JsonNode =
-
+  ##Updates a Mailbox and only changes the called parameters
   let data = %*{
                 "items": [
                   mailbox
@@ -167,7 +175,8 @@ proc updateMailbox*(self: Session, mailbox: string, name: string = "",
   return parseJson(resp.body)
 
 proc updateSpamScore*(self: Session, mailbox: string, score: string): JsonNode =
-
+  ##Updates the Spamscore for the
+  ##Mailbox has to be the full E-Mail address (example@example.com)
   let data = %*[
                 {
                   "items": [
@@ -185,7 +194,7 @@ proc updateSpamScore*(self: Session, mailbox: string, score: string): JsonNode =
   return parseJson(resp.body)
 
 proc deleteMailbox*(self: Session, mailbox: string): JsonNode =
-
+  ##Deletes the provided Mailbox
   let data = %*[
                 mailbox
                ]
@@ -196,7 +205,8 @@ proc deleteMailbox*(self: Session, mailbox: string): JsonNode =
   return parseJson(resp.body)  
 
 proc setQuarantineNoti*(self: Session, mailbox: string, time: string): JsonNode =
-
+  ##Sets the Quarantine Notifications Settings.
+  ##Valid time settings are: hourly, daily, weekly, never
   let data = %*{
                 "items": [
                   mailbox
@@ -212,13 +222,14 @@ proc setQuarantineNoti*(self: Session, mailbox: string, time: string): JsonNode 
   return parseJson(resp.body)
 
 proc getAliases*(self: Session, id: string): JsonNode =
-
+  ##Return the Alias settings
+  ##Valid id values are: all or the number
   let resp = self.client.getContent($(self.url / "api/v1/get/alias" / id))
 
   return parseJson(resp)
 
 proc createAlias*(self: Session, mailbox: string, goto: string, active: string): JsonNode =
-
+  ##Creates an alias
   let data = %*{
                 "address": mailbox,
                 "goto": goto,
@@ -232,7 +243,7 @@ proc createAlias*(self: Session, mailbox: string, goto: string, active: string):
 
 proc updateAlias*(self: Session, id: string, address: string = "", goto: string = "",
                   priv: string = "", pub: string = "", active: string = ""): JsonNode =
-  
+  ##Updates the alias settings
   let data = %*{
                 "items": [
                   id
@@ -252,7 +263,7 @@ proc updateAlias*(self: Session, id: string, address: string = "", goto: string 
   return parseJson(resp.body)
 
 proc deleteAlias*(self: Session, id: string): JsonNode =
-  
+  ##Deletes an Alias
   let data = %*[
                 id
               ]
@@ -263,19 +274,19 @@ proc deleteAlias*(self: Session, id: string): JsonNode =
   return parseJson(resp.body)
 
 proc getLogs*(self: Session, service: string, count: string): JsonNode =
-  
+  ##Valid Services are: postfix, rspamd-history, dovecot, acme, sogo, watchdog, api, ratelimited, netfilter, autodiscover
   let resp = self.client.getContent($(self.url / "api/v1/get/logs" / service / count))
 
   return parseJson(resp)
 
 proc getQueue*(self: Session): JsonNode =
-
+  ##Returns the current Queue as a JsonNode
   let resp = self.client.getContent($(self.url / "api/v1/get/mailq/all"))
 
   return parseJson(resp)
 
 proc flushQueue*(self: Session): JsonNode =
-
+  ##Flushes the Queue
   let data = %*{
                 "action": "flush"
               }
@@ -286,7 +297,7 @@ proc flushQueue*(self: Session): JsonNode =
   return parseJson(resp.body)
 
 proc deleteQueue*(self: Session): JsonNode =
-
+  ##Deletes the current Queue
   let data = %*{
                 "action": "super_delete"
               }
@@ -297,13 +308,13 @@ proc deleteQueue*(self: Session): JsonNode =
   return parseJson(resp.body)
 
 proc getQuarantine*(self: Session): JsonNode =
-
+  ##Returns all Mails in the Quarantine as a JsonNode 
   let resp = self.client.getContent($(self.url / "api/v1/get/quarantine/all"))
 
   return parseJson(resp)
 
 proc deleteQuarantine*(self: Session, id: string): JsonNode =
-
+  ##Deletes a Mail from the Quarantine
   let data = %*[
                 id
               ]
@@ -314,7 +325,7 @@ proc deleteQuarantine*(self: Session, id: string): JsonNode =
   return parseJson(resp.body)
 
 proc getFail2Ban*(self: Session): JsonNode =
-
+  ##Gets the current Fail2Ban settings
   let resp = self.client.getContent($(self.url / "api/v1/get/fail2ban"))
 
   return parseJson(resp)
@@ -323,7 +334,8 @@ proc editFail2Ban*(self: Session, ban_time: string ="", max_attempts: string =""
                   retry_window: string ="", netban_ipv4: string = "",
                   netban_ipv6: string ="", whitelist: string = "",
                   blacklist: string =""): JsonNode =
-
+  ##Edits the Fail2Ban settings
+  ##Only edits the called parameters
   let data = %*{
                 "items": [
                   "none"
@@ -345,13 +357,14 @@ proc editFail2Ban*(self: Session, ban_time: string ="", max_attempts: string =""
   return parseJson(resp.body)
 
 proc getDkim*(self: Session, domain: string): JsonNode =
-
+  ##Gets the public DKIM key for the provided Domain
   let resp = self.client.getContent($(self.url / "api/v1/get/dkim" / domain))
 
   return parseJson(resp)
 
 proc generateDkim*(self: Session, domain: string, size: string = "2048"): JsonNode =
-
+  ##Generates a DKIM key for the provided domain
+  ##Default size is 2048
   let data = %*{
                 "domains": domain,
                 "dkim_selector": "dkim",
@@ -364,7 +377,7 @@ proc generateDkim*(self: Session, domain: string, size: string = "2048"): JsonNo
   return parseJson(resp.body)
 
 proc duplicateDkim*(self: Session, from_domain: string, to: string): JsonNode =
-
+  ##Duplicates the DKIM key from one domain to another
   let data = %*{
                 "from_domain": from_domain,
                 "to_domain": to
